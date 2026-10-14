@@ -33,7 +33,14 @@ docker compose up -d --no-build
 docker compose ps
 ```
 
-WebUI：**http://localhost:8080**。API：**http://localhost:8000/v1**。別端末からは実行環境のホスト名またはIPを指定してください。現在のAPIは認証トークンなしで利用できます。
+| 用途 | DGX Spark上からの接続先 |
+|---|---|
+| WebUI | `http://localhost:8080` |
+| API（OpenAI互換のbase_url） | `http://localhost:8000/v1` |
+
+別端末から開く場合は、`localhost` をDGX Sparkのホスト名またはIPアドレスに置き換えてください。ポートを変更した場合は、`.env` の `WEBUI_PORT`・`API_PORT` に合わせます。
+
+現在のAPIは認証トークンなしで利用できます。
 
 ## 使い方
 
