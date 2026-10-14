@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light"><title>Image Studio</title>
+  <link rel="stylesheet" href="/style.css?v=20261014-neutral"><script type="module" src="/app.js?v=20261014-neutral"></script>
+</head>
+<body>
+  <header><a class="brand" href="/">Image Studio</a></header>
+  <main>
+    <div class="workspace">
+      <section class="controls" aria-label="操作パネル">
+        <nav aria-label="操作を選択"><button class="tab active" data-mode="generate" aria-pressed="true">生成</button><button class="tab" data-mode="edit" aria-pressed="false">編集</button><button class="tab" data-mode="compose" aria-pressed="false">合成</button><button class="tab" data-mode="analyze" aria-pressed="false">解析</button></nav>
+        <form id="form">
+          <div id="upload-area" hidden>
+            <div id="first-upload">
+            <label class="label" for="file" id="input-label">入力画像</label>
+            <label class="upload" for="file"><img id="input-preview" alt="入力画像のプレビュー" hidden><span id="upload-label">＋ PNG・JPEGを選択<small>画像は1枚・16MiBまで</small></span></label>
+            <input id="file" type="file" accept="image/png,image/jpeg"><button class="quiet" type="button" id="clear-input" hidden>画像を外す</button>
+            </div>
+            <div id="second-upload" hidden>
+              <label class="label" for="file2">画像2</label>
+              <label class="upload" for="file2"><img id="input-preview2" alt="画像2のプレビュー" hidden><span id="upload-label2">＋ PNG・JPEGを選択<small>16MiBまで</small></span></label>
+              <input id="file2" type="file" accept="image/png,image/jpeg"><button class="quiet" type="button" id="clear-input2" hidden>画像2を外す</button>
+            </div>
+          </div>
+          <div id="preset-area" hidden>
+            <label class="label" for="preset">編集プリセット</label><select id="preset"></select>
+            <div class="preset-parameters">
+            <div id="preset-target-area" hidden><label class="label" for="preset-target" id="preset-target-label">対象</label><input id="preset-target" maxlength="300"></div>
+            <div id="preset-detail-area" hidden><label class="label" for="preset-detail" id="preset-detail-label">変更内容</label><input id="preset-detail" maxlength="500"></div>
+            </div>
+          </div>
+          <label class="label" for="prompt" id="prompt-label">作りたい画像</label>
+          <textarea id="prompt" required maxlength="8000" rows="4" placeholder="例：窓辺の木製テーブルに赤いティーポットと白いカップ。柔らかな朝の光、写真風。"></textarea>
+          <div id="image-options"><label class="label" for="size">画像サイズ</label><select id="size"><option>1024x1024</option><option>768x1024</option><option>1024x768</option><option>512x512</option><option>1536x1024</option><option>1024x1536</option><option>1344x768</option><option>768x1344</option></select>
+            <details id="advanced"><summary id="advanced-label">詳細設定</summary><label class="label" for="seed">シード</label><input id="seed" inputmode="numeric" placeholder="ランダム" pattern="-?[0-9]+"><button class="quiet" id="random-seed" type="button">ランダムに戻す</button></details>
+          </div>
+          <div id="analysis-options" hidden><label class="label" for="format">出力形式</label><select id="format"><option value="text">テキスト（順次表示）</option><option value="json">JSON</option></select><div id="schema-area" hidden><label class="label" for="schema">JSON Schema <span>任意</span></label><textarea id="schema" rows="4" placeholder='{"type":"object","properties":{"description":{"type":"string"}},"required":["description"]}'></textarea></div></div>
+          <button id="submit" class="primary" type="submit">画像を生成 <span>↗</span></button>
+          <p id="progress" role="status" aria-live="polite"></p><p id="error" role="alert" hidden></p>
+        </form>
+
+      </section>
+      <section class="result-panel" aria-label="処理結果"><div class="result-heading"><h2 id="result-title">プレビュー</h2><span id="result-info">結果はここに表示されます</span></div>
+        <div id="processing" class="empty processing" role="status" hidden><div class="loading-orbit" aria-hidden="true"></div><h3 id="processing-title">画像を生成しています…</h3><p id="processing-elapsed">0秒</p></div>
+        <div id="empty" class="empty"><div class="empty-art">✳</div><h3>まだ、何もないキャンバス。</h3><p>左のパネルから、最初の一枚を作ってみましょう。</p></div>
+        <div id="image-result" hidden><img id="output-image" alt="生成・編集した画像"><div id="seed-result" hidden><span id="result-seed"></span><button class="quiet" id="reuse-seed" type="button">このシードを再利用</button></div><div class="result-actions"><a id="download" class="action" download="image-image.png">PNGを保存 ↓</a><button id="use-edit" class="action" type="button">この画像を編集</button><button id="use-analyze" class="action" type="button">この画像を解析</button></div></div>
+        <div id="text-result" hidden><pre id="output-text" aria-live="polite"></pre><button id="save-text" class="action" type="button">結果を保存 ↓</button></div>
+        <div id="history" hidden><h3>このセッションの画像</h3><div id="history-images"></div></div>
+      </section>
+    </div>
+  </main>
+</body></html>

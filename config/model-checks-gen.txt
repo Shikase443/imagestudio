@@ -1,0 +1,4 @@
+6711985888 aa98b85820544771506b94aa75368a97a457e0d5b569d1a602bde6c64f5a9cfd Qwen-Image-2.1-Turbo-AD-Q6_K.gguf
+8709520096 f8f9f6276b726db5291f4a5343089612cb5fd08aa81e8f0791dc66d2c03d07ca Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf
+1159029984 d9870a1f168db3d814596216aaf35702154147b443572c7939acca1802621ac6 mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-F16.gguf
+675509688 bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9 vae/qwen_image_2.1_vae_bf16.safetensors

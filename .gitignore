@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+models/
+output/
+build-evidence/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+.ssh*
+trush.txt
+ssh-password.txt
+connection.json
+remote.ps1

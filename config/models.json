@@ -1,0 +1,32 @@
+{
+  "files": [
+    {
+      "repo": "AtomicChat/Qwen-Image-2.1-Turbo-GGUF",
+      "revision": "bb25d06bc74119c12207243d68917951e6d9c232",
+      "path": "Qwen-Image-2.1-Turbo-AD-Q6_K.gguf",
+      "size": 6711985888,
+      "sha256": "aa98b85820544771506b94aa75368a97a457e0d5b569d1a602bde6c64f5a9cfd"
+    },
+    {
+      "repo": "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+      "revision": "e3b01e9bfacc373148bdb93824496e0c72643250",
+      "path": "Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf",
+      "size": 8709520096,
+      "sha256": "f8f9f6276b726db5291f4a5343089612cb5fd08aa81e8f0791dc66d2c03d07ca"
+    },
+    {
+      "repo": "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF",
+      "revision": "e3b01e9bfacc373148bdb93824496e0c72643250",
+      "path": "mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-F16.gguf",
+      "size": 1159029984,
+      "sha256": "d9870a1f168db3d814596216aaf35702154147b443572c7939acca1802621ac6"
+    },
+    {
+      "repo": "Comfy-Org/Qwen-Image-2.1",
+      "revision": "df94239739eef7205973a145ffa6f441f7b64e84",
+      "path": "vae/qwen_image_2.1_vae_bf16.safetensors",
+      "size": 675509688,
+      "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9"
+    }
+  ]
+}
