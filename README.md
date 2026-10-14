@@ -4,6 +4,16 @@ NVIDIA DGX Spark向けの画像AIサービスです。画像の生成・編集�
 
 モデル本体は同梱しません。利用者が配布元から取得し、依存パッケージの導入・ビルド・実行はすべてコンテナ内で行います。
 
+## スクリーンショット
+
+文章から画像を生成し、結果のシードを再利用できます。
+
+![Image Studioの画像生成画面](docs/images/webui-generation.jpg)
+
+編集プリセットで対象と変更内容を指定できます。下の例はティーポットの色を赤から青へ変更しています。
+
+![Image Studioの編集プリセットと色変更結果](docs/images/webui-edit.jpg)
+
 ## 動作条件
 
 DGX Spark（GB10・共有メモリ128GB）での利用を前提としています。Linux ARM64、CUDA 13、Compute Capability 12.1（SM 121a）に固定したGPUレシピです。Docker ComposeとNVIDIA Container Toolkitが利用できる環境が必要です。
