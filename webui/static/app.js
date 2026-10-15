@@ -23,6 +23,7 @@ const presetDefinitions = {
   ],
   compose:[
     {key:'clothes',label:'服だけ置き換える',build:()=>`画像1の人物が着ている服だけを、画像2の服のデザイン、色、素材に変更してください。画像1の人物の顔、髪、体形、ポーズ、手足、背景は維持してください。服を体の形とポーズに自然に合わせてください。${keepFirst}`},
+    {key:'pose',label:'ポーズだけ合わせる',build:()=>`画像1の人物のポーズを画像2の人物と同じにしてください。顔立ち、髪型、服装、体形、画風と背景は画像1のまま維持してください。画像2の顔や服装は持ち込まないでください。手足や関節を自然に整えてください。`},
     {key:'color',label:'色だけ合わせる',target:['色を変える物体（画像1）','例：ティーポット'],build:target=>`画像1の${target}の色だけを、画像2の対応する物体の色に合わせてください。画像1の対象の形、材質、陰影、位置、大きさを維持してください。${keepFirst}`},
     {key:'add',label:'物体だけ追加する',target:['追加する物体（画像2）','例：花瓶'],detail:['配置する場所（画像1）','例：テーブルの右側'],build:(target,detail)=>`画像2の${target}だけを画像1の${detail}に追加してください。画像2の他の物体や背景は追加しないでください。追加する物体の形と色を保ち、画像1の光、影、遠近感、大きさに自然に合わせてください。画像1の既存の物体と背景、構図は維持してください。`},
     {key:'background',label:'背景だけ置き換える',build:()=>`画像1の主な被写体をそのまま維持し、背景だけを画像2の背景に置き換えてください。画像1の被写体の顔、服装、形、ポーズを変更しないでください。画像2の人物や不要な物体を追加せず、光、影、遠近感を自然に合わせてください。`},
@@ -308,10 +309,26 @@ $('form').onsubmit = async event => {
       let response; const size = $('size').value;
       if (mode === 'generate') response = await fetch('/api/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'qwen-image-2.1-turbo',prompt,size,n:1,...(seed !== undefined ? {seed} : {})})});
       else {
+        let imagePrompt = prompt;
+        if (mode === 'compose' && $('preset').value === 'pose') {
+          $('processing-title').textContent = '画像2のポーズを確認しています…';
+          const poseResponse = await fetch('/api/v1/images/analyze', {
+            method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+              image:await asDataUrl(secondFile),format:'text',
+              prompt:'画像の主な人物と同じポーズに描き替えるための編集指示を、日本語の命令形で一文だけ書いてください。腕の曲げ方、肘の向き、両手の位置、脚の開き、体と顔の向きを具体的に含めてください。画像から読み取れる姿勢だけを指示し、顔立ち・服装・背景・画風には触れないでください。'
+            })
+          });
+          await checkResponse(poseResponse);
+          const pose = (await poseResponse.json()).result;
+          if (typeof pose !== 'string' || !pose.trim()) throw new Error('画像2のポーズを読み取れませんでした。自由入力で姿勢を補ってお試しください。');
+          imagePrompt = `${prompt}\n画像1の人物への具体的な変更指示：${pose.trim()}`;
+          if (imagePrompt.length > 8000) throw new Error('指示文が長すぎます。ポーズの説明を追加できるよう短くしてください。');
+          $('processing-title').textContent = '画像を合成しています…';
+        }
         const form = new FormData();
         if (mode === 'compose') { form.set('image1',inputFile); form.set('image2',secondFile); }
         else form.set('image',inputFile);
-        form.set('prompt',prompt); form.set('model','qwen-image-2.1-turbo'); form.set('size',size); form.set('n','1');
+        form.set('prompt',imagePrompt); form.set('model','qwen-image-2.1-turbo'); form.set('size',size); form.set('n','1');
         if (seed !== undefined) form.set('seed',String(seed));
         response = await fetch(mode === 'compose' ? '/api/v1/images/compositions' : '/api/v1/images/edits',{method:'POST',body:form});
       }
