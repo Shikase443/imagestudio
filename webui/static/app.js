@@ -131,7 +131,7 @@ function setInput(file, resetSteps = true) {
     };
     decoded.onerror = () => {
       if (inputFile !== file) return;
-      setInput(null); $('file').value = ''; fail('画像を読み込めませんでした。PNGまたはJPEGを選び直してください。');
+      setInput(null); $('file').value = ''; fail('画像を読み込めませんでした。PNG・JPEG・静止WebPを選び直してください。');
     };
     decoded.src = inputUrl;
   }
@@ -146,7 +146,7 @@ function setSecondInput(file) {
   if (file) {
     const preview = $('input-preview2');
     preview.onload = () => { if (secondFile === file) { secondLoading = false; updateButton(); } };
-    preview.onerror = () => { if (secondFile === file) { setSecondInput(null); $('file2').value = ''; fail('画像2を読み込めませんでした。PNGまたはJPEGを選び直してください。'); } };
+    preview.onerror = () => { if (secondFile === file) { setSecondInput(null); $('file2').value = ''; fail('画像2を読み込めませんでした。PNG・JPEG・静止WebPを選び直してください。'); } };
     preview.src = secondUrl;
   } else { $('input-preview2').removeAttribute('src'); }
   updateButton();
@@ -228,16 +228,16 @@ async function refreshHealth() {
 document.querySelectorAll('.tab').forEach(el => el.onclick = () => switchMode(el.dataset.mode));
 $('file').onchange = () => {
   $('error').hidden = true; const file = $('file').files[0]; if (!file) return;
-  if (!['image/png','image/jpeg'].includes(file.type) || file.size > 16 * 1024 * 1024) {
-    $('file').value = ''; setInput(null); fail('PNGまたはJPEGを16MiB以内で指定してください。'); return;
+  if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 16 * 1024 * 1024) {
+    $('file').value = ''; setInput(null); fail('PNG・JPEG・静止WebPを16MiB以内で指定してください。'); return;
   }
   setInput(file);
 };
 $('clear-input').onclick = () => { setInput(null); $('file').value = ''; };
 $('file2').onchange = () => {
   $('error').hidden = true; const file = $('file2').files[0]; if (!file) return;
-  if (!['image/png','image/jpeg'].includes(file.type) || file.size > 16 * 1024 * 1024) {
-    $('file2').value = ''; setSecondInput(null); fail('画像2はPNGまたはJPEGを16MiB以内で指定してください。'); return;
+  if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 16 * 1024 * 1024) {
+    $('file2').value = ''; setSecondInput(null); fail('画像2はPNG・JPEG・静止WebPを16MiB以内で指定してください。'); return;
   }
   setSecondInput(file);
 };

@@ -144,34 +144,49 @@ def image_check(data, png_only=False):
         raise HTTPException(413, "画像は16MiB以下で指定してください")
     try:
         with Image.open(BytesIO(data)) as image:
-            if image.format not in (("PNG",) if png_only else ("PNG", "JPEG")):
+            if image.format not in (("PNG",) if png_only else ("PNG", "JPEG", "WEBP")):
                 raise ValueError("format")
+            if image.format == "WEBP" and getattr(image, "n_frames", 1) != 1:
+                raise ValueError("animated WebP")
             if image.width * image.height > 16 * 1024 * 1024:
                 raise ValueError("pixels")
-            mime = "image/png" if image.format == "PNG" else "image/jpeg"
+            mime = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}[image.format]
             image.verify()
         with Image.open(BytesIO(data)) as image:
             image.load()
     except Exception:
-        raise HTTPException(422, "有効なPNGまたはJPEG画像を指定してください")
+        raise HTTPException(422, "有効なPNG・JPEGまたは静止WebP画像を指定してください")
     return mime
+
+
+def image_reference(data, declared=None):
+    mime = image_check(data)
+    if declared and declared != mime:
+        raise HTTPException(422, "画像形式とデータURLが一致しません")
+    if mime == "image/webp":
+        # Backends receive the existing PNG/JPEG contract, including transparency.
+        with Image.open(BytesIO(data)) as image:
+            output = BytesIO()
+            image.save(output, format="PNG")
+            data = output.getvalue()
+        if len(data) > MAX_IMAGE_BYTES:
+            raise HTTPException(413, "WebPのPNG変換後の容量が16MiBを超えています。画像を縮小してください")
+        mime = "image/png"
+    return "data:" + mime + ";base64," + base64.b64encode(data).decode()
 
 
 def image_data_url(encoded):
     declared = None
     if encoded.startswith("data:"):
         header, _, encoded = encoded.partition(",")
-        if header not in ("data:image/png;base64", "data:image/jpeg;base64"):
-            raise HTTPException(422, "PNG/JPEGのBase64データURLを指定してください")
+        if header not in ("data:image/png;base64", "data:image/jpeg;base64", "data:image/webp;base64"):
+            raise HTTPException(422, "PNG/JPEG/WebPのBase64データURLを指定してください")
         declared = header[5:].split(";")[0]
     try:
         data = base64.b64decode(encoded, validate=True)
     except (ValueError, TypeError):
         raise HTTPException(422, "画像のBase64形式が不正です")
-    mime = image_check(data)
-    if declared and declared != mime:
-        raise HTTPException(422, "画像形式とデータURLが一致しません")
-    return "data:" + mime + ";base64," + base64.b64encode(data).decode()
+    return image_reference(data, declared)
 
 
 def schema_check(response_format):
@@ -431,8 +446,7 @@ async def edits(request: Request, image: Annotated[UploadFile, File()], prompt: 
     model_check(body.model, "gen")
     size_check(body.size)
     data = await image.read(MAX_IMAGE_BYTES + 1)
-    mime = await asyncio.to_thread(image_check, data)
-    reference = "data:" + mime + ";base64," + base64.b64encode(data).decode()
+    reference = await asyncio.to_thread(image_reference, data)
     return await wait_work(await start_work(lambda: generate(body, reference), request.state.request_id, "gen"))
 
 
@@ -455,8 +469,7 @@ async def compositions(request: Request, image1: Annotated[UploadFile, File()], 
     references = []
     for uploaded in (image1, image2):
         data = await uploaded.read(MAX_IMAGE_BYTES + 1)
-        mime = await asyncio.to_thread(image_check, data)
-        references.append("data:" + mime + ";base64," + base64.b64encode(data).decode())
+        references.append(await asyncio.to_thread(image_reference, data))
     return await wait_work(await start_work(lambda: generate(body, references), request.state.request_id, "gen"))
 
 
@@ -501,7 +514,7 @@ def chat_payload(body):
                         raise HTTPException(422, "image_urlの形式が不正です")
                     url = part["image_url"].get("url")
                     if not isinstance(url, str) or not url.startswith("data:"):
-                        raise HTTPException(422, "画像はPNG/JPEGのBase64データURLで指定してください")
+                        raise HTTPException(422, "画像はPNG/JPEG/WebPのBase64データURLで指定してください")
                     part["image_url"]["url"] = image_data_url(url)
                 elif not isinstance(part.get("text"), str):
                     raise HTTPException(422, "textは文字列で指定してください")

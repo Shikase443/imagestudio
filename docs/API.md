@@ -29,9 +29,9 @@ curl http://localhost:8000/v1/images/edits \
 ```
 
 生成・編集の応答は `{"created":...,"data":[{"b64_json":"..."}]}`。`b64_json` をBase64復号するとPNGになります。
-編集にはPNGまたはJPEGを1枚指定します。マスク編集は未対応です。
+編集にはPNG・JPEG・静止WebPのいずれかを1枚指定します。マスク編集は未対応です。
 
-2画像合成は追加した独立APIです。既存の生成・編集・解析APIの仕様は変更していません。`image1` と `image2` を各1枚、PNGまたはJPEGで指定します。各画像は16MiBまで、multipart本文全体は32MiBまでです。応答は生成・編集と同じPNGの `b64_json` です。
+2画像合成は追加した独立APIです。既存の生成・編集・解析APIの仕様は変更していません。`image1` と `image2` を各1枚、PNG・JPEG・静止WebPで指定します。各画像は16MiBまで、multipart本文全体は32MiBまでです。応答は生成・編集と同じPNGの `b64_json` です。
 
 ```sh
 curl http://localhost:8000/v1/images/compositions \
@@ -40,7 +40,7 @@ curl http://localhost:8000/v1/images/compositions \
   -F size=1024x1024 -F seed=42
 ```
 
-画像解析は `/v1/chat/completions` に標準の `messages` を送ります。画像は `image_url.url` に `data:image/png;base64,...` またはJPEGのdata URIを指定してください。HTTP画像URLは未対応です。
+画像解析は `/v1/chat/completions` に標準の `messages` を送ります。画像は `image_url.url` に `data:image/png;base64,...` またはJPEG・静止WebPのdata URIを指定してください。HTTP画像URLは未対応です。
 
 ```json
 {
@@ -61,3 +61,5 @@ curl http://localhost:8000/v1/images/compositions \
 同時推論は生成・解析を合わせて1件です。実行中の追加要求は429と `Retry-After: 2` を返します。生成・編集の `n` は1、サイズは各辺64〜2048の64の倍数、画像入力は16MiBまで、要求本文は32MiBまでです。
 
 APIの待ち時間上限は600秒。タイムアウトやクライアント切断後もバックエンド処理が完了するまで同時実行制限を保持します。バックエンド停止時は503、異常な応答は502を返します。
+
+静止WebPはAPI内部でPNGへ変換してバックエンドへ送信します。透過情報は保持します。アニメーションWebPは未対応です。入力は各16MiB以下・最大16メガピクセル（16 × 1024 × 1024画素）、WebPのPNG変換後も16MiB以下で指定してください。生成結果の形式はPNGのままです。

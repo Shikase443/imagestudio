@@ -139,6 +139,55 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
             response = await self.client.post("/v1/images/compositions", data={"prompt": "combine"}, files=files)
             self.assertEqual(response.status_code, 422, response.text)
 
+    def webp(self, animated=False):
+        output = BytesIO()
+        image = Image.new("RGBA", (64, 64), (10, 20, 30, 128))
+        image.save(output, "WEBP", lossless=True, save_all=animated,
+                   **({"append_images": [Image.new("RGBA", (64, 64), "red")], "duration": 100} if animated else {}))
+        return output.getvalue()
+
+    def assert_webp_normalized(self, reference):
+        self.assertTrue(reference.startswith("data:image/png;base64,"))
+        with Image.open(BytesIO(base64.b64decode(reference.split(",", 1)[1]))) as image:
+            self.assertEqual(image.format, "PNG")
+            self.assertEqual(image.size, (64, 64))
+            self.assertEqual(image.convert("RGBA").getpixel((0, 0)), (10, 20, 30, 128))
+
+    async def test_webp_edit_and_composition_preserve_alpha_and_order(self):
+        webp = ("input.webp", self.webp(), "image/webp")
+        response = await self.client.post("/v1/images/edits", data={"prompt": "edit", "size": "64x64"}, files={"image": webp})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assert_webp_normalized(self.payload["ref_images"][0])
+        for first in (True, False):
+            response = await self.client.post("/v1/images/compositions", data={"prompt": "combine", "size": "64x64"},
+                files={"image1": webp if first else ("input.png", self.png, "image/png"),
+                       "image2": ("input.png", self.png, "image/png") if first else webp})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assert_webp_normalized(self.payload["ref_images"][0 if first else 1])
+            self.assertEqual(self.payload["ref_images"][1 if first else 0], self.url)
+
+    async def test_webp_analysis_and_chat_normalize_before_backend(self):
+        encoded = base64.b64encode(self.webp()).decode()
+        for value in (encoded, "data:image/webp;base64," + encoded):
+            response = await self.client.post("/v1/images/analyze", json={"image": value, "prompt": "describe"})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assert_webp_normalized(self.payload["messages"][0]["content"][1]["image_url"]["url"])
+        for stream in (False, True):
+            body = self.chat(stream=stream)
+            body["messages"][0]["content"][1]["image_url"]["url"] = "data:image/webp;base64," + encoded
+            response = await self.client.post("/v1/chat/completions", json=body)
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assert_webp_normalized(self.payload["messages"][0]["content"][1]["image_url"]["url"])
+
+    async def test_animated_corrupt_and_mislabeled_webp_rejected(self):
+        for data in (self.webp(animated=True), b"RIFF\x00\x00\x00\x00WEBPbad"):
+            response = await self.client.post("/v1/images/edits", data={"prompt": "edit"}, files={"image": ("bad.webp", data, "image/webp")})
+            self.assertEqual(response.status_code, 422, response.text)
+        for url in ("data:image/webp;base64," + self.encoded,
+                    "data:image/png;base64," + base64.b64encode(self.webp()).decode()):
+            response = await self.client.post("/v1/images/analyze", json={"image": url, "prompt": "describe"})
+            self.assertEqual(response.status_code, 422, response.text)
+
     async def test_composition_invalid_parameters(self):
         files = {"image1": ("a.png", self.png, "image/png"), "image2": ("b.png", self.png, "image/png")}
         for extra in ({"n": "2"}, {"mask": "unsupported"}, {"size": "bad"}):
