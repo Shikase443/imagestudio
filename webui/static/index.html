@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light"><title>Image Studio</title>
-  <link rel="stylesheet" href="/style.css?v=20261014-neutral"><script type="module" src="/app.js?v=20261015-presets2"></script>
+  <link rel="stylesheet" href="/style.css?v=20261015-preview"><script type="module" src="/app.js?v=20261015-preview"></script>
 </head>
 <body>
   <header><a class="brand" href="/">Image Studio</a></header>
@@ -15,12 +15,12 @@
           <div id="upload-area" hidden>
             <div id="first-upload">
             <label class="label" for="file" id="input-label">入力画像</label>
-            <label class="upload" for="file"><img id="input-preview" alt="入力画像のプレビュー" hidden><span id="upload-label">＋ PNG・JPEGを選択<small>画像は1枚・16MiBまで</small></span></label>
+            <div class="upload"><button class="preview-open" id="open-input-preview" type="button" aria-label="入力画像を拡大" title="画像を拡大" hidden><img id="input-preview" alt="入力画像のプレビュー" hidden><svg class="preview-zoom" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6M10 7v6M7 10h6"></path></svg></button><label for="file" id="upload-label">＋ PNG・JPEGを選択<small>画像は1枚・16MiBまで</small></label></div>
             <input id="file" type="file" accept="image/png,image/jpeg"><button class="quiet" type="button" id="clear-input" hidden>画像を外す</button>
             </div>
             <div id="second-upload" hidden>
               <label class="label" for="file2">画像2</label>
-              <label class="upload" for="file2"><img id="input-preview2" alt="画像2のプレビュー" hidden><span id="upload-label2">＋ PNG・JPEGを選択<small>16MiBまで</small></span></label>
+              <div class="upload"><button class="preview-open" id="open-input-preview2" type="button" aria-label="画像2を拡大" title="画像を拡大" hidden><img id="input-preview2" alt="画像2のプレビュー" hidden><svg class="preview-zoom" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6M10 7v6M7 10h6"></path></svg></button><label for="file2" id="upload-label2">＋ PNG・JPEGを選択<small>16MiBまで</small></label></div>
               <input id="file2" type="file" accept="image/png,image/jpeg"><button class="quiet" type="button" id="clear-input2" hidden>画像2を外す</button>
             </div>
           </div>
@@ -51,4 +51,5 @@
       </section>
     </div>
   </main>
+  <dialog id="input-preview-dialog" aria-labelledby="input-preview-title"><div class="preview-dialog-heading"><span id="input-preview-title">入力画像</span><button id="close-input-preview" class="preview-close" type="button" aria-label="拡大表示を閉じる">閉じる</button></div><img id="expanded-input-preview" alt="入力画像の拡大表示"></dialog>
 </body></html>

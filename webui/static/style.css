@@ -96,3 +96,18 @@ pre{min-height:240px;padding:16px}
 #reuse-seed{font-size:12px;color:#356548}
 @media(min-width:721px){#output-image{max-height:max(160px,calc(100dvh - 360px))}}
 @media(max-width:720px){#advanced summary{min-height:44px;display:flex;align-items:center}}
+
+/* Larger input previews; the dialog allows inspection without expanding the form. */
+.upload:has(.preview-open:not([hidden])){height:clamp(120px,21dvh,168px);min-height:0;padding:6px}
+.upload>label{cursor:pointer;width:100%}
+.preview-open{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;padding:0;border:0;border-radius:6px;background:transparent;cursor:zoom-in}
+.upload .preview-open img{width:100%;height:100%;max-height:none;max-width:100%;object-fit:contain}
+.preview-open:focus-visible{outline:2px solid #76a68a;outline-offset:2px}
+.preview-zoom{position:absolute;right:4px;bottom:4px;width:26px;height:26px;padding:4px;border-radius:6px;background:#ffffffeb;fill:none;stroke:#356548;stroke-width:1.8;stroke-linecap:round}
+#input-preview-dialog{width:max-content;max-width:94vw;max-height:94dvh;padding:12px;border:1px solid #dce3d7;border-radius:12px;background:#fbfcf9;color:#263b2d}
+#input-preview-dialog::backdrop{background:#12251ed0}
+body:has(#input-preview-dialog[open]){overflow:hidden}
+.preview-dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:8px;font-size:13px}
+.preview-close{min-height:44px;padding:8px 12px;border:1px solid #dce3d7;border-radius:8px;background:#fff;color:#356548}
+#expanded-input-preview{display:block;max-width:min(85vw,1160px);max-height:calc(90dvh - 76px);object-fit:contain;margin:auto;border-radius:6px}
+@media(max-width:720px){.upload:has(.preview-open:not([hidden])){height:clamp(168px,48vw,220px)}}
