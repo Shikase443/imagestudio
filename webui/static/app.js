@@ -1,10 +1,13 @@
 'use strict';
 import {pngSeed} from './png-seed.mjs';
+import {posePresets, poseAnalysisPrompt, poseEditPrompt} from './pose-presets.mjs';
 const $ = id => document.getElementById(id);
 let mode = 'generate', busy = false, inputFile = null, inputUrl = null, currentImage = null;
 let serviceBusy = false, healthy = false, startTime = 0, textFormat = 'text';
 let inputDimensions = null, inputLoading = false, autoSizePending = false;
 let secondFile = null, secondUrl = null, secondLoading = false;
+const compositionSteps = [];
+let lastAdoptedImage = null;
 const history = [], prompts = {generate: '', edit: '', compose: '', analyze: 'この画像を日本語で詳しく説明してください。'};
 const labels = {generate: '画像を生成', edit: '画像を編集', compose: '画像を合成', analyze: '画像を解析'};
 const placeholders = {generate: '例：窓辺の木製テーブルに赤いティーポットと白いカップ。柔らかな朝の光、写真風。', edit: '例：ティーポットを青色に変更してください。カップと背景はそのまま維持してください。', compose: '例：画像1の人物を画像2の風景の中に配置してください。人物の顔と服装を維持し、光や影を背景に合わせてください。', analyze: '画像について知りたいことを入力してください。'};
@@ -23,7 +26,7 @@ const presetDefinitions = {
   ],
   compose:[
     {key:'clothes',label:'服だけ置き換える',build:()=>`画像1の人物が着ている服だけを、画像2の服のデザイン、色、素材に変更してください。画像1の人物の顔、髪、体形、ポーズ、手足、背景は維持してください。服を体の形とポーズに自然に合わせてください。${keepFirst}`},
-    {key:'pose',label:'ポーズだけ合わせる',build:()=>`画像1の人物を、画像2と同じ身体の向き・胴体の傾き・腕の高さ・肘の曲げ方・手の位置・脚の開き幅・膝の曲げ方に描き替えてください。元の姿勢は維持せず、画像2の姿勢を優先してください。顔立ち、髪型、服装のデザイン、体形、画風、背景は画像1を維持してください。服の輪郭やしわは変更後の姿勢に合わせて描き直してください。`},
+    ...posePresets.map(preset=>({...preset,build:()=>preset.prompt})),
     {key:'color',label:'色だけ合わせる',target:['色を変える物体（画像1）','例：ティーポット'],build:target=>`画像1の${target}の色だけを、画像2の対応する物体の色に合わせてください。画像1の対象の形、材質、陰影、位置、大きさを維持してください。${keepFirst}`},
     {key:'add',label:'物体だけ追加する',target:['追加する物体（画像2）','例：花瓶'],detail:['配置する場所（画像1）','例：テーブルの右側'],build:(target,detail)=>`画像2の${target}だけを画像1の${detail}に追加してください。画像2の他の物体や背景は追加しないでください。追加する物体の形と色を保ち、画像1の光、影、遠近感、大きさに自然に合わせてください。画像1の既存の物体と背景、構図は維持してください。`},
     {key:'background',label:'背景だけ置き換える',build:()=>`画像1の主な被写体をそのまま維持し、背景だけを画像2の背景に置き換えてください。画像1の被写体の顔、服装、形、ポーズを変更しないでください。画像2の人物や不要な物体を追加せず、光、影、遠近感を自然に合わせてください。`},
@@ -68,7 +71,11 @@ function updateButton() {
   const loading = (mode !== 'generate' && inputLoading) || (mode === 'compose' && secondLoading);
   $('submit').disabled = busy || serviceBusy || !healthy || loading;
   $('submit').textContent = busy ? '処理しています…' : loading ? '画像を読み込み中…' : !healthy ? 'APIへの接続待ち' : serviceBusy ? '他の処理が実行中です' : labels[mode] + ' ↗';
-  document.querySelectorAll('.tab, #use-edit, #use-analyze, #clear-input, #file, #clear-input2, #file2, #preset, #preset-target, #preset-detail, #seed, #random-seed, #reuse-seed').forEach(el => el.disabled = busy);
+  document.querySelectorAll('.tab, #use-edit, #use-analyze, #clear-input, #file, #clear-input2, #file2, #preset, #preset-target, #preset-detail, #seed, #random-seed, #reuse-seed, #prompt, #size').forEach(el => el.disabled = busy);
+  $('use-compose').hidden = mode !== 'compose' || currentImage?.kind !== 'compose';
+  $('use-compose').disabled = busy || inputLoading || currentImage === lastAdoptedImage;
+  $('undo-compose').hidden = mode !== 'compose' || !compositionSteps.length;
+  $('undo-compose').disabled = busy || inputLoading;
 }
 function switchMode(next) {
   if (busy) return;
@@ -107,7 +114,8 @@ function selectEditSize() {
   $('size').value = sizes[0].value;
   autoSizePending = false;
 }
-function setInput(file) {
+function setInput(file, resetSteps = true) {
+  if (resetSteps) { compositionSteps.length = 0; lastAdoptedImage = null; }
   if (inputUrl) URL.revokeObjectURL(inputUrl);
   inputFile = file; inputUrl = file ? URL.createObjectURL(file) : null;
   inputDimensions = null; inputLoading = !!file; autoSizePending = !!file;
@@ -174,6 +182,7 @@ function displayImage(item) {
   $('result-title').textContent = {edit:'編集結果',compose:'合成結果',generate:'生成結果'}[item.kind];
   $('seed-result').hidden = item.seed === null;
   $('result-seed').textContent = item.seed === null ? '' : 'シード ' + item.seed;
+  updateButton();
 }
 function rememberImage(blob, info, seed) {
   const item = {blob, url:URL.createObjectURL(blob), name:'image-' + Date.now() + '.png', info, kind:mode, seed};
@@ -256,6 +265,26 @@ function useImage(next) {
   switchMode(next); $('prompt').focus(); window.scrollTo({top:0,behavior:'smooth'});
 }
 $('use-edit').onclick = () => useImage('edit'); $('use-analyze').onclick = () => useImage('analyze');
+$('use-compose').onclick = () => {
+  if (busy || inputLoading || !currentImage || mode !== 'compose' || currentImage === lastAdoptedImage) return;
+  compositionSteps.push({file:inputFile,size:$('size').value,adopted:lastAdoptedImage});
+  if (compositionSteps.length > 10) compositionSteps.shift();
+  lastAdoptedImage = currentImage;
+  const size = $('size').value;
+  setInput(new File([currentImage.blob],currentImage.name,{type:'image/png'}),false);
+  autoSizePending = false; $('size').value = size; $('file').value = '';
+  $('progress').textContent = '画像1に採用しました。次のパーツを選択してください。';
+  $('preset').focus(); updateButton();
+};
+$('undo-compose').onclick = () => {
+  if (busy || inputLoading || !compositionSteps.length) return;
+  const step = compositionSteps.pop(); lastAdoptedImage = step.adopted;
+  setInput(step.file,false); autoSizePending = false; $('size').value = step.size; $('file').value = '';
+  currentImage = null; $('image-result').hidden = true; $('text-result').hidden = true; $('empty').hidden = false;
+  $('result-title').textContent = 'プレビュー'; $('result-info').textContent = '';
+  $('progress').textContent = '画像1を採用前に戻しました。結果は履歴から再表示できます。';
+  updateButton();
+};
 $('save-text').onclick = () => {
   const url = URL.createObjectURL(new Blob([$('output-text').textContent], {type:textFormat === 'json' ? 'application/json' : 'text/plain;charset=utf-8'}));
   const a = document.createElement('a'); a.href = url; a.download = 'image-analysis.' + (textFormat === 'json' ? 'json' : 'txt'); a.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
@@ -310,13 +339,14 @@ $('form').onsubmit = async event => {
       if (mode === 'generate') response = await fetch('/api/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'qwen-image-2.1-turbo',prompt,size,n:1,...(seed !== undefined ? {seed} : {})})});
       else {
         let imagePrompt = prompt;
-        const poseOnly = mode === 'compose' && $('preset').value === 'pose';
+        const posePreset = mode === 'compose' && posePresets.find(item=>item.key === $('preset').value);
+        const poseOnly = !!posePreset;
         if (poseOnly) {
           $('processing-title').textContent = '画像2のポーズを確認しています…';
           const poseResponse = await fetch('/api/v1/images/analyze', {
             method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
               image:await asDataUrl(secondFile),format:'text',
-              prompt:'Describe only the main person\'s body pose below the neck in one concise English instruction starting with "Change the person to". Include torso facing direction, both arms and hand contact locations, leg spacing and knee bending. Use clear spatial words, not joint angles. Do not describe appearance, face, hair, clothes or background. Do not invent hidden details. Maximum 70 words.'
+              prompt:poseAnalysisPrompt(posePreset)
             })
           });
           await checkResponse(poseResponse);
@@ -324,8 +354,7 @@ $('form').onsubmit = async event => {
           if (typeof pose !== 'string' || !pose.trim()) throw new Error('画像2のポーズを読み取れませんでした。自由入力で姿勢を補ってお試しください。');
           // Avoid repeating the generic preset: the editor receives only image1, so
           // references to an absent "image2" obscure the concrete pose instruction.
-          imagePrompt = `${pose.trim()} Keep the same person, facial features, hairstyle, clothing design and background as the input image. Redraw the body and clothing outline to match the new pose. Exactly two arms and two legs.`;
-          if (prompt !== selectedPreset().build().trim()) imagePrompt += `\n利用者の追加指示：${prompt}`;
+          imagePrompt = poseEditPrompt(posePreset,pose,prompt);
           if (imagePrompt.length > 8000) throw new Error('指示文が長すぎます。ポーズの説明を追加できるよう短くしてください。');
           $('processing-title').textContent = '画像を合成しています…';
         }
