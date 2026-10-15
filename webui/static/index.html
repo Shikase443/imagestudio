@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light"><title>Image Studio</title>
-  <link rel="stylesheet" href="/style.css?v=20261015-preview"><script type="module" src="/app.js?v=20261015-preview"></script>
+  <link rel="stylesheet" href="/style.css?v=20261015-result-preview"><script type="module" src="/app.js?v=20261015-result-preview"></script>
 </head>
 <body>
   <header><a class="brand" href="/">Image Studio</a></header>
@@ -45,7 +45,7 @@
       <section class="result-panel" aria-label="処理結果"><div class="result-heading"><h2 id="result-title">プレビュー</h2><span id="result-info">結果はここに表示されます</span></div>
         <div id="processing" class="empty processing" role="status" hidden><div class="loading-orbit" aria-hidden="true"></div><h3 id="processing-title">画像を生成しています…</h3><p id="processing-elapsed">0秒</p></div>
         <div id="empty" class="empty"><div class="empty-art">✳</div><h3>まだ、何もないキャンバス。</h3><p>左のパネルから、最初の一枚を作ってみましょう。</p></div>
-        <div id="image-result" hidden><img id="output-image" alt="生成・編集した画像"><div id="seed-result" hidden><span id="result-seed"></span><button class="quiet" id="reuse-seed" type="button">このシードを再利用</button></div><div class="result-actions"><a id="download" class="action" download="image-image.png">PNGを保存 ↓</a><button id="use-edit" class="action" type="button">この画像を編集</button><button id="use-analyze" class="action" type="button">この画像を解析</button></div></div>
+        <div id="image-result" hidden><button class="result-preview" id="open-result-preview" type="button" aria-label="結果画像を拡大" title="画像を拡大"><img id="output-image" alt="生成・編集した画像"><svg class="preview-zoom" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6M10 7v6M7 10h6"></path></svg></button><div id="seed-result" hidden><span id="result-seed"></span><button class="quiet" id="reuse-seed" type="button">このシードを再利用</button></div><div class="result-actions"><a id="download" class="action" download="image-image.png">PNGを保存 ↓</a><button id="use-edit" class="action" type="button">この画像を編集</button><button id="use-analyze" class="action" type="button">この画像を解析</button></div></div>
         <div id="text-result" hidden><pre id="output-text" aria-live="polite"></pre><button id="save-text" class="action" type="button">結果を保存 ↓</button></div>
         <div id="history" hidden><h3>このセッションの画像</h3><div id="history-images"></div></div>
       </section>

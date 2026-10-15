@@ -142,15 +142,19 @@ function setSecondInput(file) {
   } else { $('input-preview2').removeAttribute('src'); }
   updateButton();
 }
-function openInputPreview(url, label) {
+function openImagePreview(url, label) {
   if (!url) return;
   $('input-preview-title').textContent = label;
   $('expanded-input-preview').src = url;
   $('expanded-input-preview').alt = label + 'の拡大表示';
   $('input-preview-dialog').showModal();
 }
-$('open-input-preview').onclick = () => openInputPreview(inputUrl, mode === 'compose' ? '画像1' : '入力画像');
-$('open-input-preview2').onclick = () => openInputPreview(secondUrl, '画像2');
+$('open-input-preview').onclick = () => openImagePreview(inputUrl, mode === 'compose' ? '画像1' : '入力画像');
+$('open-input-preview2').onclick = () => openImagePreview(secondUrl, '画像2');
+$('open-result-preview').onclick = () => {
+  if (busy || !currentImage) return;
+  openImagePreview(currentImage.url, {generate:'生成結果',edit:'編集結果',compose:'合成結果'}[currentImage.kind] || '結果画像');
+};
 $('close-input-preview').onclick = () => $('input-preview-dialog').close();
 $('input-preview-dialog').onclick = event => { if (event.target === $('input-preview-dialog')) $('input-preview-dialog').close(); };
 $('input-preview-dialog').onclose = () => $('expanded-input-preview').removeAttribute('src');

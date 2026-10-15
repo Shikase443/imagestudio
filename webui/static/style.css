@@ -103,6 +103,8 @@ pre{min-height:240px;padding:16px}
 .preview-open{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;padding:0;border:0;border-radius:6px;background:transparent;cursor:zoom-in}
 .upload .preview-open img{width:100%;height:100%;max-height:none;max-width:100%;object-fit:contain}
 .preview-open:focus-visible{outline:2px solid #76a68a;outline-offset:2px}
+.result-preview{display:block;position:relative;width:100%;padding:0;border:0;border-radius:10px;background:transparent;cursor:zoom-in}
+.result-preview:focus-visible{outline:2px solid #76a68a;outline-offset:2px}
 .preview-zoom{position:absolute;right:4px;bottom:4px;width:26px;height:26px;padding:4px;border-radius:6px;background:#ffffffeb;fill:none;stroke:#356548;stroke-width:1.8;stroke-linecap:round}
 #input-preview-dialog{width:max-content;max-width:94vw;max-height:94dvh;padding:12px;border:1px solid #dce3d7;border-radius:12px;background:#fbfcf9;color:#263b2d}
 #input-preview-dialog::backdrop{background:#12251ed0}
