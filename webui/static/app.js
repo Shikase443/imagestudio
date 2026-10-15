@@ -23,7 +23,7 @@ const presetDefinitions = {
   ],
   compose:[
     {key:'clothes',label:'服だけ置き換える',build:()=>`画像1の人物が着ている服だけを、画像2の服のデザイン、色、素材に変更してください。画像1の人物の顔、髪、体形、ポーズ、手足、背景は維持してください。服を体の形とポーズに自然に合わせてください。${keepFirst}`},
-    {key:'pose',label:'ポーズだけ合わせる',build:()=>`画像1の人物の首から下のポーズだけを画像2の人物に合わせてください。頭部、顔立ち、顔の向き、視線、表情、髪型は画像1のまま維持してください。服装、体形、画風と背景も画像1を維持し、手足や関節を自然に整えてください。`},
+    {key:'pose',label:'ポーズだけ合わせる',build:()=>`画像1の人物を、画像2と同じ身体の向き・胴体の傾き・腕の高さ・肘の曲げ方・手の位置・脚の開き幅・膝の曲げ方に描き替えてください。元の姿勢は維持せず、画像2の姿勢を優先してください。顔立ち、髪型、服装のデザイン、体形、画風、背景は画像1を維持してください。服の輪郭やしわは変更後の姿勢に合わせて描き直してください。`},
     {key:'color',label:'色だけ合わせる',target:['色を変える物体（画像1）','例：ティーポット'],build:target=>`画像1の${target}の色だけを、画像2の対応する物体の色に合わせてください。画像1の対象の形、材質、陰影、位置、大きさを維持してください。${keepFirst}`},
     {key:'add',label:'物体だけ追加する',target:['追加する物体（画像2）','例：花瓶'],detail:['配置する場所（画像1）','例：テーブルの右側'],build:(target,detail)=>`画像2の${target}だけを画像1の${detail}に追加してください。画像2の他の物体や背景は追加しないでください。追加する物体の形と色を保ち、画像1の光、影、遠近感、大きさに自然に合わせてください。画像1の既存の物体と背景、構図は維持してください。`},
     {key:'background',label:'背景だけ置き換える',build:()=>`画像1の主な被写体をそのまま維持し、背景だけを画像2の背景に置き換えてください。画像1の被写体の顔、服装、形、ポーズを変更しないでください。画像2の人物や不要な物体を追加せず、光、影、遠近感を自然に合わせてください。`},
@@ -316,13 +316,16 @@ $('form').onsubmit = async event => {
           const poseResponse = await fetch('/api/v1/images/analyze', {
             method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
               image:await asDataUrl(secondFile),format:'text',
-              prompt:'画像の主な人物の首から下の姿勢だけを再現する編集指示を、日本語の命令形で一文だけ書いてください。腕の曲げ方、肘の向き、両手の位置、脚の開き、胴体の向きのうち、画像で確認できることだけを具体的に含めてください。頭部、顔、顔の向き、視線、表情、髪型、服装、体形、背景、画風には一切触れないでください。'
+              prompt:'Describe only the main person\'s body pose below the neck in one concise English instruction starting with "Change the person to". Include torso facing direction, both arms and hand contact locations, leg spacing and knee bending. Use clear spatial words, not joint angles. Do not describe appearance, face, hair, clothes or background. Do not invent hidden details. Maximum 70 words.'
             })
           });
           await checkResponse(poseResponse);
           const pose = (await poseResponse.json()).result;
           if (typeof pose !== 'string' || !pose.trim()) throw new Error('画像2のポーズを読み取れませんでした。自由入力で姿勢を補ってお試しください。');
-          imagePrompt = `${prompt}\n首から下の姿勢への具体的な変更指示：${pose.trim()}\n入力画像の頭部、顔立ち、顔の向き、視線、表情、髪型を維持し、変更は首から下の姿勢に限定してください。`;
+          // Avoid repeating the generic preset: the editor receives only image1, so
+          // references to an absent "image2" obscure the concrete pose instruction.
+          imagePrompt = `${pose.trim()} Keep the same person, facial features, hairstyle, clothing design and background as the input image. Redraw the body and clothing outline to match the new pose. Exactly two arms and two legs.`;
+          if (prompt !== selectedPreset().build().trim()) imagePrompt += `\n利用者の追加指示：${prompt}`;
           if (imagePrompt.length > 8000) throw new Error('指示文が長すぎます。ポーズの説明を追加できるよう短くしてください。');
           $('processing-title').textContent = '画像を合成しています…';
         }
