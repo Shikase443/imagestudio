@@ -103,6 +103,8 @@ services:
       - --auto-fit
       - "off"
       - --eager-load
+      - --conditioning-cache-size
+      - "0"
       - --fa
       - --steps
       - "8"
@@ -176,6 +178,11 @@ services:
       - "8192"
       - --parallel
       - "1"
+      - --cache-ram
+      - "0"
+      - --ctx-checkpoints
+      - "0"
+      - --no-cache-idle-slots
       - --gpu-layers
       - all
       - --mmproj-device
