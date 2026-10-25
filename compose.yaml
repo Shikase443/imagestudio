@@ -1,234 +1,41 @@
 name: image-studio
 
 services:
-  model-download:
-    profiles: [tools]
-    image: python@sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286
-    platform: linux/arm64
-    user: "${HOST_UID}:${HOST_GID}"
-    environment:
-      PYTHONDONTWRITEBYTECODE: "1"
-    command: ["python", "-B", "/tools/prepare_models.py", "--manifest", "/config/models.json"]
-    volumes:
-      - ./models:/models
-      - ./config/models.json:/config/models.json:ro
-      - ./tools/prepare_models.py:/tools/prepare_models.py:ro
-    read_only: true
-    tmpfs:
-      - /tmp:size=32m
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-
-  image-webui:
-    image: image-studio-webui:v1
-    build: ./webui
-    pull_policy: never
-    platform: linux/arm64
-    init: true
-    user: "${HOST_UID}:${HOST_GID}"
-    environment:
-      IMAGE_API_URL: http://image-api:8000
-    ports:
-      - "${WEBUI_PORT:-8080}:8080"
-    networks: [public]
-    depends_on:
-      image-api:
-        condition: service_healthy
-    read_only: true
-    tmpfs:
-      - /tmp:size=32m
-    mem_limit: 512m
-    memswap_limit: 512m
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-    restart: unless-stopped
-
-  image-api:
-    image: image-studio-api:v1
-    build: ./gateway
+  image-studio:
+    image: image-studio:v1
+    build: .
     pull_policy: never
     platform: linux/arm64
     init: true
     user: "${HOST_UID}:${HOST_GID}"
     environment:
       TZ: JST-9
-      IMAGE_GEN_URL: http://image-gen:8001
-      IMAGE_VLM_URL: http://image-vlm:8002
       API_TIMEOUT_SECONDS: "600"
-    volumes:
-      - ./output/telemetry:/telemetry:ro
+      GEN_ENCODER_FILE: "${GEN_ENCODER_FILE:-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf}"
+      VLM_MODEL_FILE: "${VLM_MODEL_FILE:-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf}"
+      NVIDIA_VISIBLE_DEVICES: "0"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     ports:
       - "${API_PORT:-8000}:8000"
-    networks: [backend, public]
-    depends_on:
-      image-gen:
-        condition: service_healthy
-      image-vlm:
-        condition: service_healthy
+      - "${WEBUI_PORT:-8080}:8080"
+    volumes:
+      - ./models:/models:${MODEL_MOUNT_MODE:-ro}
+      - ./output:/output
+      - ${GEN_MODEL_CHECKS:-./config/model-checks-gen.txt}:/app/config/model-checks-gen.txt:ro
+      - ${VLM_MODEL_CHECKS:-./config/model-checks-vlm.txt}:/app/config/model-checks-vlm.txt:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
     read_only: true
     tmpfs:
-      - /tmp:size=256m
-    mem_limit: 2g
-    memswap_limit: 2g
+      - /tmp:size=512m
+    mem_limit: 76g
+    memswap_limit: 76g
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
     stop_grace_period: 60s
     restart: unless-stopped
-
-  image-gen:
-    image: image-studio-gen:c150a6b
-    build: ./image-gen
-    pull_policy: never
-    platform: linux/arm64
-    init: true
-    user: "${HOST_UID}:${HOST_GID}"
-    entrypoint: ["/bin/bash", "/config/start.sh"]
-    command:
-      - --listen-ip
-      - 0.0.0.0
-      - --listen-port
-      - "8001"
-      - --diffusion-model
-      - /models/Qwen-Image-2.1-Turbo-AD-Q6_K.gguf
-      - --llm
-      - /models/${GEN_ENCODER_FILE:-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf}
-      - --llm_vision
-      - /models/mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-F16.gguf
-      - --vae
-      - /models/vae/qwen_image_2.1_vae_bf16.safetensors
-      - --backend
-      - CUDA0
-      - --params-backend
-      - CUDA0
-      - --auto-fit
-      - "off"
-      - --eager-load
-      - --conditioning-cache-size
-      - "0"
-      - --fa
-      - --steps
-      - "8"
-      - --cfg-scale
-      - "1.0"
-      - --sampling-method
-      - euler
-      - --sigmas
-      - 1.0,0.978453,0.95418,0.926626,0.89508,0.845148,0.704534,0.414568,0.0
-      - --width
-      - "1024"
-      - --height
-      - "1024"
-      - --log-level
-      - info
-    environment:
-      TZ: JST-9
-      NVIDIA_VISIBLE_DEVICES: "0"
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]
-              capabilities: [gpu]
-    volumes:
-      - ./models:/models:ro
-      - ./output:/output
-      - ./image-gen/start.sh:/config/start.sh:ro
-      - ./tools/backend_telemetry.sh:/config/telemetry.sh:ro
-      - ${GEN_MODEL_CHECKS:-./config/model-checks-gen.txt}:/config/model-checks.txt:ro
-    expose: ["8001"]
-    networks: [backend]
-    read_only: true
-    tmpfs:
-      - /tmp:size=256m
-    mem_limit: 48g
-    memswap_limit: 48g
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-    stop_grace_period: 60s
-    restart: "no"
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8001/v1/models"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30m
-      retries: 3
-
-  image-vlm:
-    image: image-studio-vlm:bfe65e1
-    build: ./image-vlm
-    pull_policy: never
-    platform: linux/arm64
-    init: true
-    user: "${HOST_UID}:${HOST_GID}"
-    entrypoint: ["/bin/bash", "/config/start.sh"]
-    command:
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8002"
-      - --model
-      - /models/${VLM_MODEL_FILE:-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-Q8_0.gguf}
-      - --mmproj
-      - /models/mmproj-Qwen-Image-2.1-Turbo-Abliterated-Uncensored-F16.gguf
-      - --alias
-      - qwen-image-analysis
-      - --ctx-size
-      - "8192"
-      - --parallel
-      - "1"
-      - --cache-ram
-      - "0"
-      - --ctx-checkpoints
-      - "0"
-      - --no-cache-idle-slots
-      - --gpu-layers
-      - all
-      - --mmproj-device
-      - CUDA0
-      - --fit
-      - "off"
-      - --flash-attn
-      - "on"
-      - --jinja
-    environment:
-      TZ: JST-9
-      HOME: /tmp
-      NVIDIA_VISIBLE_DEVICES: "0"
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]
-              capabilities: [gpu]
-    volumes:
-      - ./models:/models:ro
-      - ./output:/output
-      - ./image-vlm/start.sh:/config/start.sh:ro
-      - ./tools/backend_telemetry.sh:/config/telemetry.sh:ro
-      - ${VLM_MODEL_CHECKS:-./config/model-checks-vlm.txt}:/config/model-checks.txt:ro
-    expose: ["8002"]
-    networks: [backend]
-    read_only: true
-    tmpfs:
-      - /tmp:size=256m
-    mem_limit: 24g
-    memswap_limit: 24g
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-    stop_grace_period: 60s
-    restart: "no"
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8002/health"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30m
-      retries: 3
-
-networks:
-  backend:
-    internal: true
-  public:

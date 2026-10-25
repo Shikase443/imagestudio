@@ -16,7 +16,7 @@ ROUTES = {"health": "GET", "v1/models": "GET", "v1/images/generations": "POST",
 
 @asynccontextmanager
 async def lifespan(app):
-    async with httpx.AsyncClient(base_url=os.getenv("IMAGE_API_URL", "http://image-api:8000"),
+    async with httpx.AsyncClient(base_url=os.getenv("IMAGE_API_URL", "http://127.0.0.1:8000"),
                                  timeout=httpx.Timeout(660, connect=5), trust_env=False) as client:
         app.state.client = client
         yield
@@ -56,4 +56,4 @@ async def proxy(path: str, request: Request):
                              headers=forwarded, background=BackgroundTask(response.aclose))
 
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True), name="static")

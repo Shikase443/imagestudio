@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+models/
+output/
+source.tar
+__pycache__/
+*.pyc
+
+docs/
+.single-container*/
+*.before-*

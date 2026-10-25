@@ -87,8 +87,8 @@ class AccessMiddleware:
 @asynccontextmanager
 async def lifespan(app):
     app.state.client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5, write=10, pool=5), trust_env=False)
-    app.state.urls = {"gen": os.getenv("IMAGE_GEN_URL", "http://image-gen:8001"),
-                      "vlm": os.getenv("IMAGE_VLM_URL", "http://image-vlm:8002")}
+    app.state.urls = {"gen": os.getenv("IMAGE_GEN_URL", "http://127.0.0.1:8001"),
+                      "vlm": os.getenv("IMAGE_VLM_URL", "http://127.0.0.1:8002")}
     app.state.admission = asyncio.Lock()
     app.state.active = None
     app.state.uncertain = False

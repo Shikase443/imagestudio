@@ -2,6 +2,8 @@
 
 NVIDIA DGX Spark向けの画像AIサービスです。画像の生成・編集・2画像合成・解析を、日本語WebUIとHTTP APIから利用できます。WebUIは落ち着いたダーク配色で、スマートフォンにも対応します。
 
+生成・解析・API・WebUIは1つのコンテナで動作します。起動・停止・更新・ログ確認はこの1つに対して行います。
+
 モデル本体は同梱しません。利用者が配布元から取得し、依存パッケージの導入・ビルド・実行はすべてコンテナ内で行います。
 
 ## スクリーンショット
@@ -36,9 +38,8 @@ printf 'HOST_UID=%s\nHOST_GID=%s\nAPI_PORT=8000\nWEBUI_PORT=8080\n' "$(id -u)" "
 モデルのライセンスを確認したうえで、利用者自身が配布元から取得します。固定リビジョン・容量・SHA256は `config/models.json` に記録しています。
 
 ```sh
-docker compose --profile tools run --rm model-download
-docker compose build image-gen image-vlm image-api
-docker compose build image-webui
+docker compose build
+MODEL_MOUNT_MODE=rw docker compose run --rm --no-deps --entrypoint python image-studio /app/tools/prepare_models.py --manifest /app/config/models.json
 docker compose up -d --no-build
 docker compose ps
 ```
@@ -51,6 +52,22 @@ docker compose ps
 別端末から開く場合は、`localhost` をDGX Sparkのホスト名またはIPアドレスに置き換えてください。ポートを変更した場合は、`.env` の `WEBUI_PORT`・`API_PORT` に合わせます。
 
 現在のAPIは認証トークンなしで利用できます。
+
+## 運用と開発
+
+```sh
+docker compose logs -f
+docker compose stop
+docker compose up -d --build
+```
+
+1つのイメージ内で生成バックエンド、解析バックエンド、API、WebUIを起動します。8001・8002はコンテナ内のループバックだけで待ち受け、外部へ公開するのは従来どおりAPIの8000とWebUIの8080です。モデル・出力・ポート設定は引き継げます。
+
+起動時にはモデルの容量とSHA256を確認し、共通ファイルの重複チェックを省略します。モデル読み込み中もWebUIを表示でき、全サービスの準備が整うとコンテナがhealthyになります。いずれかのプロセスが終了すると残りも停止し、Composeの再起動方針に従います。停止時も全プロセスへ終了シグナルを送り、終了しない場合は強制終了します。
+
+アプリのソースはイメージに含まれます。更新は `docker compose up -d --build` に統一し、CUDA・モデル・Pythonの依存ビルドはDockerのキャッシュを利用します。モデル本体と出力はバインドマウントに保存するため、コンテナ再作成後も保持されます。
+
+旧4コンテナ構成から移行する場合は、旧構成のComposeファイルで一度 `docker compose down` してから、新構成で起動してください。モデルと出力のディレクトリはそのまま利用します。`down -v` やモデルの再取得は不要です。
 
 ## 使い方
 
@@ -99,10 +116,10 @@ docker compose ps
 compose.yaml       コンテナ構成
 gateway/           統合API
 webui/             WebUIとAPI中継
-image-gen/         生成バックエンドのビルド・起動
-image-vlm/         解析バックエンドのビルド・起動
+Dockerfile         生成・解析のビルドと統合イメージ
+runtime/           全プロセスの起動・終了管理とメモリ観測
 config/            モデル取得・検証設定（重みは含まない）
-tools/             取得とメモリ観測
+tools/             モデル取得
 tests/             個別環境に依存しないテスト
 docs/              APIの利用方法
 models/            利用者が取得するモデル（Git対象外）
@@ -115,13 +132,14 @@ output/            実行時データ（Git対象外）
 
 この設定は「モデル以外の全メモリを毎回解放する」ものではありません。解析のKVバッファや実行用バッファなど、バックエンドが常駐コンテキストに確保する領域は残ります。コンテキスト長8192・モデルの量子化・生成ステップ数は変更していません。
 
+`output/telemetry` のGPU使用量は生成・解析プロセス別に計測します。`cgroup_memory_bytes` は両ファイルとも統合コンテナ全体の値です。生成・解析それぞれのRAM使用量として足し合わせないでください。
+
 ## 検証
 
 API・WebUIのテストはモデルをロードせず、コンテナ内で実行できます。
 
 ```sh
-docker compose run --rm --no-deps -v "$PWD/tests:/tests:ro" --entrypoint python image-api -B -m unittest discover -s /tests -p test_gateway.py
-docker compose run --rm --no-deps -w /webui -v "$PWD/tests:/tests:ro" --entrypoint python image-webui -B -m unittest discover -s /tests -p test_webui.py
+docker compose run --rm --no-deps -e PYTHONPATH=/app/gateway:/app/webui:/app -v "$PWD/tests:/tests:ro" --entrypoint python image-studio -B -m unittest discover -s /tests -p "test_*.py"
 ```
 
 PNGメタデータのテストはNode.jsの標準機能のみを使います。
