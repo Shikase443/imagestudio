@@ -78,16 +78,52 @@ RUN mkdir -p /build-info/licenses \
     && if [ ! -f ggml/LICENSE ]; then true; else cp ggml/LICENSE /build-info/licenses/ggml-LICENSE.txt; fi
 
 
+# Build stable CPython without changing the CUDA base or adding host packages.
+FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:532381a7bf759bbe4d9c783468bc2cc4766cf656da5814fb04e049dc58fe268b AS python-build
+ENV DEBIAN_FRONTEND=noninteractive
+COPY runtime/update_os_packages.sh /usr/local/bin/update-os-packages
+RUN sh /usr/local/bin/update-os-packages \
+    && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates curl libbz2-dev libffi-dev libgdbm-dev \
+        liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev \
+        libzstd-dev pkg-config uuid-dev xz-utils zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG PYTHON_VERSION=3.15.2
+ARG PYTHON_SHA256=8b5536d280142ecf6cdfe15d12a21ba1c65e300bbf7b28a8d0cdb849575797de
+ARG PYTHON_BUILD_JOBS=8
+RUN curl --fail --show-error --location --retry 3 \
+        "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz" -o /tmp/python.tar.xz \
+    && echo "${PYTHON_SHA256}  /tmp/python.tar.xz" | sha256sum --check --strict \
+    && mkdir /tmp/python-source \
+    && tar -xJf /tmp/python.tar.xz --strip-components=1 -C /tmp/python-source \
+    && cd /tmp/python-source \
+    && ./configure --prefix=/opt/python --with-ensurepip=install --disable-test-modules --without-system-libmpdec \
+    && make -j "${PYTHON_BUILD_JOBS}" \
+    && make install \
+    && /opt/python/bin/python3 -c "import ssl, sqlite3, bz2, lzma, ctypes, hashlib, zlib, compression.zstd, _decimal" \
+    && mkdir -p /opt/python-build-info \
+    && printf '%s\n' "${PYTHON_VERSION}" > /opt/python-build-info/version.txt \
+    && printf '%s\n' "${PYTHON_SHA256}" > /opt/python-build-info/source-sha256.txt \
+    && cp LICENSE /opt/python-build-info/LICENSE.txt \
+    && rm -rf /tmp/python-source /tmp/python.tar.xz
+
+
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:532381a7bf759bbe4d9c783468bc2cc4766cf656da5814fb04e049dc58fe268b AS runtime
 ENV DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH HOME=/tmp \
     IMAGE_GEN_URL=http://127.0.0.1:8001 IMAGE_VLM_URL=http://127.0.0.1:8002 \
     IMAGE_API_URL=http://127.0.0.1:8000 TELEMETRY_DIR=/output/telemetry
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl libgomp1 libssl3t64 python3 python3-venv \
+COPY runtime/update_os_packages.sh /usr/local/bin/update-os-packages
+RUN sh /usr/local/bin/update-os-packages \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl libbz2-1.0 libffi8 libgdbm6t64 libgomp1 liblzma5 \
+        libncursesw6 libreadline8t64 libsqlite3-0 libssl3t64 libzstd1 zlib1g \
     && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/venv \
     && mkdir -p /models /output
+COPY --from=python-build /opt/python /opt/python
+COPY --from=python-build /opt/python-build-info /usr/local/share/python-build
+RUN /opt/python/bin/python3 -m venv /opt/venv \
+    && python -m pip install --no-cache-dir --upgrade pip==26.2.2
 COPY --from=gen-build /src/stable-diffusion.cpp/build/bin/sd-server /usr/local/bin/sd-server
 COPY --from=gen-build /build-info /usr/local/share/sd-build
 COPY --from=vlm-build /src/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server

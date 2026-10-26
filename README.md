@@ -69,6 +69,23 @@ docker compose up -d --build
 
 旧4コンテナ構成から移行する場合は、旧構成のComposeファイルで一度 `docker compose down` してから、新構成で起動してください。モデルと出力のディレクトリはそのまま利用します。`down -v` やモデルの再取得は不要です。
 
+### Python・OSパッケージの更新
+
+CUDAのベースイメージとdigest、生成・解析バックエンドのコミットは固定しています。Pythonは3.15.2を公式ソースからSHA256検証付きでビルドし、アプリ専用環境に配置します。ホストのPython・OS・ドライバーは変更しません。
+
+実行イメージのUbuntu 24.04パッケージには、同リリースで提供される更新を適用します。CUDA/NVIDIA関連パッケージはholdし、更新前後でバージョンが一致することをビルド中に検証します。記録は `/usr/local/share/image-studio/cuda-packages.lock` にあります。
+
+Python依存の直接指定は `gateway/requirements.txt`、推移的な依存を含む検証済みの固定値は `gateway/requirements.lock.txt` です。通常の再ビルドでは固定値とビルドキャッシュを使います。依存の更新時は固定値を更新してテストしてください。
+
+Ubuntuパッケージだけを再取得する場合は、CUDAのコンパイル層を再利用し、Python構築・実行環境の層を再実行できます。
+
+```sh
+docker buildx build --load --no-cache-filter python-build,runtime -t image-studio:v1 .
+docker compose up -d --no-build
+```
+
+この操作でもベースイメージやCUDAの固定値は変更しません。更新前のイメージを別タグで保持し、APIの回帰テストとDGX実機での動作確認後に切り替えてください。
+
 ## 使い方
 
 - **生成**：文章から画像を作成します。

@@ -7,7 +7,7 @@
 | stable-diffusion.cpp | [MIT License](https://github.com/leejet/stable-diffusion.cpp/blob/master/LICENSE) |
 | llama.cpp | [MIT License](https://github.com/ggml-org/llama.cpp/blob/master/LICENSE) |
 | CUDAベースイメージ | [NVIDIA CUDAのライセンス](https://docs.nvidia.com/cuda/eula/index.html) |
-| Pythonベースイメージ | [Pythonのライセンス](https://docs.python.org/3/license.html) |
+| Python（CPythonをソースからビルド） | [Pythonのライセンス](https://docs.python.org/3/license.html)。実行イメージ内の `/usr/local/share/python-build/LICENSE.txt` に収録 |
 | 生成モデルのGGUF | [AtomicChat配布元](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF)、[Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/main/LICENSE) |
 | テキストエンコーダー・解析モデル | [AtomicChat配布元](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF)、Apache-2.0（Qwen3-VL由来） |
 | VAE | [Comfy-Org配布元](https://huggingface.co/Comfy-Org/Qwen-Image-2.1)、[Qwen Research License](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE) |
