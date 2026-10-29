@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><meta name="theme-color" content="#151a18"><title>Image Studio</title>
-  <link rel="stylesheet" href="/style.css?v=20261023-dark"><script type="module" src="/app.js?v=20261015-webp"></script>
+  <link rel="stylesheet" href="/style.css?v=20261023-dark"><script type="module" src="/app.js?v=20261029-clothing"></script>
 </head>
 <body>
   <header><a class="brand" href="/">Image Studio</a></header>
@@ -27,6 +27,7 @@
           <button class="quiet" id="undo-compose" type="button" hidden>採用を取り消す</button>
           <div id="preset-area" hidden>
             <label class="label" for="preset">編集プリセット</label><select id="preset"></select>
+            <div id="clothing-part-area" hidden><label class="label" for="clothing-part">置き換える部位（画像2を参照）</label><select id="clothing-part"></select></div>
             <div class="preset-parameters">
             <div id="preset-target-area" hidden><label class="label" for="preset-target" id="preset-target-label">対象</label><input id="preset-target" maxlength="300"></div>
             <div id="preset-detail-area" hidden><label class="label" for="preset-detail" id="preset-detail-label">変更内容</label><input id="preset-detail" maxlength="500"></div>

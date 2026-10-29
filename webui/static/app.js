@@ -11,7 +11,17 @@ let lastAdoptedImage = null;
 const history = [], prompts = {generate: '', edit: '', compose: '', analyze: 'この画像を日本語で詳しく説明してください。'};
 const labels = {generate: '画像を生成', edit: '画像を編集', compose: '画像を合成', analyze: '画像を解析'};
 const placeholders = {generate: '例：窓辺の木製テーブルに赤いティーポットと白いカップ。柔らかな朝の光、写真風。', edit: '例：ティーポットを青色に変更してください。カップと背景はそのまま維持してください。', compose: '例：画像1の人物を画像2の風景の中に配置してください。人物の顔と服装を維持し、光や影を背景に合わせてください。', analyze: '画像について知りたいことを入力してください。'};
-const presetState = {edit:{key:'free',target:'',detail:''},compose:{key:'free',target:'',detail:''}};
+const presetState = {edit:{key:'free',target:'',detail:''},compose:{key:'free',target:'',detail:'',clothing:'all'}};
+const clothingParts = {
+  all:{label:'服全体',part:'服全体',keep:'靴、帽子、アクセサリー'},
+  outer:{label:'上着（ジャケット・コートなど）',part:'一番外側の上着（ジャケット、コート、カーディガンなど）',keep:'上着の内側に着ているトップス、ボトムス、靴、帽子、アクセサリー'},
+  top:{label:'トップス（シャツ・ニットなど）',part:'トップス（シャツ、Tシャツ、ブラウス、ニットなど。ジャケットやコートは除く）',keep:'ジャケットやコートなどの上着、ボトムス、靴、帽子、アクセサリー'},
+  bottom:{label:'ボトムス（パンツ・スカートなど）',part:'ボトムス（パンツ、スカートなど）',keep:'上着、トップス、靴、帽子、アクセサリー'},
+  dress:{label:'ワンピース・つなぎ',part:'ワンピースやつなぎなどの上下が一体の服',keep:'重ね着している上着、靴、帽子、アクセサリー'},
+  shoes:{label:'靴',part:'靴',keep:'服全体、靴下、帽子、アクセサリー'},
+  hat:{label:'帽子',part:'帽子',keep:'服全体、靴、アクセサリー'},
+  accessories:{label:'アクセサリー',part:'アクセサリー（ネックレス、イヤリング、ブレスレットなど）',keep:'服全体、靴、帽子'}
+};
 const keepSingle = '変更範囲を指定した対象に限定してください。それ以外の被写体、背景、構図、画角、位置、形、照明、画風は元の画像のまま維持してください。';
 const keepFirst = '画像1を編集の基準としてください。画像2は指定した部分の参照としてのみ使い、画像全体を混ぜたり、画像2の不要な物体を追加したりしないでください。指定箇所以外の画像1の被写体、背景、構図、位置、形、画風は維持してください。';
 const presetDefinitions = {
@@ -25,7 +35,10 @@ const presetDefinitions = {
     {key:'pose',label:'ポーズを変更',target:['ポーズを変える対象','例：中央の人物'],detail:['変更後のポーズ','例：右手を上げて挨拶する'],build:(target,detail)=>`画像内の${target}のポーズを「${detail}」に変更してください。同じ被写体として顔立ち、表情、髪型、服装、体形、色、画風を維持してください。手足や関節、体の向き、重心を自然に整え、姿勢の変更に必要な部分だけを描き替えてください。他の被写体や背景、画角、構図はできる限り元の画像のまま維持してください。`}
   ],
   compose:[
-    {key:'clothes',label:'服だけ置き換える',build:()=>`画像1の人物が着ている服だけを、画像2の服のデザイン、色、素材に変更してください。画像1の人物の顔、髪、体形、ポーズ、手足、背景は維持してください。服を体の形とポーズに自然に合わせてください。${keepFirst}`},
+    {key:'clothes',label:'服・装飾を置き換える',build:()=>{
+      const {part,keep} = clothingParts[$('clothing-part').value];
+      return `画像1の人物の${part}だけを、画像2の対応する部位のデザイン、色、素材、模様に置き換えてください。${keep}は画像1のまま変更しないでください。画像1の人物の顔立ち、表情、髪型、体形、身体や頭の向き、ポーズ、手足、背景を維持してください。置き換える部位だけを画像1の体形とポーズに自然に合わせ、画像2の人物の顔や身体は取り込まないでください。参照する部位が画像2に見えない場合は、別の部位から代用したり推測で追加したりしないでください。${keepFirst}`;
+    }},
     ...posePresets.map(preset=>({...preset,build:()=>preset.prompt})),
     {key:'color',label:'色だけ合わせる',target:['色を変える物体（画像1）','例：ティーポット'],build:target=>`画像1の${target}の色だけを、画像2の対応する物体の色に合わせてください。画像1の対象の形、材質、陰影、位置、大きさを維持してください。${keepFirst}`},
     {key:'add',label:'物体だけ追加する',target:['追加する物体（画像2）','例：花瓶'],detail:['配置する場所（画像1）','例：テーブルの右側'],build:(target,detail)=>`画像2の${target}だけを画像1の${detail}に追加してください。画像2の他の物体や背景は追加しないでください。追加する物体の形と色を保ち、画像1の光、影、遠近感、大きさに自然に合わせてください。画像1の既存の物体と背景、構図は維持してください。`},
@@ -36,11 +49,12 @@ const presetDefinitions = {
 };
 function savePresetState() {
   if (!presetState[mode]) return;
-  presetState[mode] = {key:$('preset').value,target:$('preset-target').value,detail:$('preset-detail').value};
+  presetState[mode] = {key:$('preset').value,target:$('preset-target').value,detail:$('preset-detail').value,clothing:$('clothing-part').value};
 }
 function selectedPreset() { return (presetDefinitions[mode] || []).find(item=>item.key === $('preset').value); }
 function renderPresetFields() {
   const definition = selectedPreset();
+  $('clothing-part-area').hidden = mode !== 'compose' || definition?.key !== 'clothes';
   for (const field of ['target','detail']) {
     const settings = definition?.[field];
     $('preset-'+field+'-area').hidden = !settings;
@@ -58,6 +72,7 @@ function configurePresets() {
     presetDefinitions[mode].forEach(item=>$('preset').add(new Option(item.label,item.key)));
     $('preset').value = state.key;
     $('preset-target').value = state.target; $('preset-detail').value = state.detail;
+    $('clothing-part').value = state.clothing || 'all';
   }
   renderPresetFields();
 }
@@ -71,7 +86,7 @@ function updateButton() {
   const loading = (mode !== 'generate' && inputLoading) || (mode === 'compose' && secondLoading);
   $('submit').disabled = busy || serviceBusy || !healthy || loading;
   $('submit').textContent = busy ? '処理しています…' : loading ? '画像を読み込み中…' : !healthy ? 'APIへの接続待ち' : serviceBusy ? '他の処理が実行中です' : labels[mode] + ' ↗';
-  document.querySelectorAll('.tab, #use-edit, #use-analyze, #clear-input, #file, #clear-input2, #file2, #preset, #preset-target, #preset-detail, #seed, #random-seed, #reuse-seed, #prompt, #size').forEach(el => el.disabled = busy);
+  document.querySelectorAll('.tab, #use-edit, #use-analyze, #clear-input, #file, #clear-input2, #file2, #preset, #clothing-part, #preset-target, #preset-detail, #seed, #random-seed, #reuse-seed, #prompt, #size').forEach(el => el.disabled = busy);
   $('use-compose').hidden = mode !== 'compose' || currentImage?.kind !== 'compose';
   $('use-compose').disabled = busy || inputLoading || currentImage === lastAdoptedImage;
   $('undo-compose').hidden = mode !== 'compose' || !compositionSteps.length;
@@ -258,6 +273,8 @@ $('preset').onchange = () => {
   renderPresetFields(); savePresetState(); applyPreset();
 };
 for (const id of ['preset-target','preset-detail']) $(id).oninput = applyPreset;
+for (const [key,{label}] of Object.entries(clothingParts)) $('clothing-part').add(new Option(label,key));
+$('clothing-part').onchange = applyPreset;
 function useImage(next) {
   if (!currentImage || busy) return;
   setInput(new File([currentImage.blob], currentImage.name, {type:'image/png'})); $('file').value = '';
